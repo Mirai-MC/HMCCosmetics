@@ -48,7 +48,7 @@ public class SQLiteData extends SQLData {
     @Override
     @SuppressWarnings("resource")
     public void clear(UUID uniqueId) {
-        SchedulerUtil.runAsync(() -> {
+        executeAsync(() -> {
             try (PreparedStatement preparedSt = preparedStatement("DELETE FROM COSMETICDATABASE WHERE UUID=?;")){
                 preparedSt.setString(1, uniqueId.toString());
                 preparedSt.executeUpdate();

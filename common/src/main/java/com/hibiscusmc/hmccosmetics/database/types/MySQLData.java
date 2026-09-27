@@ -62,7 +62,7 @@ public class MySQLData extends SQLData {
 
     @Override
     public void clear(UUID uniqueId) {
-        SchedulerUtil.runAsync(() -> {
+        executeAsync(() -> {
             try (PreparedStatement preparedSt = preparedStatement("DELETE FROM COSMETICDATABASE WHERE UUID=?;")) {
                 preparedSt.setString(1, uniqueId.toString());
                 preparedSt.executeUpdate();
@@ -91,7 +91,7 @@ public class MySQLData extends SQLData {
     }
 
     public void close() {
-        SchedulerUtil.runAsync(() -> {
+        executeAsync(() -> {
             try {
                 if (connection == null) throw new IllegalStateException("Connection is null");
                 connection.close();

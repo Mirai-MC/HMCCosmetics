@@ -542,7 +542,7 @@ public class CosmeticUser implements CosmeticHolder {
         UserWardrobeManager userWardrobe = getWardrobeManager();
         if (userWardrobe == null) return;
 
-        if (userWardrobe.getWardrobeStatus() != UserWardrobeManager.WardrobeStatus.RUNNING) return;
+        if (userWardrobe.getWardrobeStatus() != UserWardrobeManager.WardrobeStatus.RUNNING && !ejected) return;
         PlayerWardrobeLeaveEvent event = new PlayerWardrobeLeaveEvent(this, userWardrobe);
         Bukkit.getPluginManager().callEvent(event);
         if (event.isCancelled()) return;
@@ -604,7 +604,7 @@ public class CosmeticUser implements CosmeticHolder {
         org.bukkit.entity.Entity entity = getEntity();
 
         UserBalloonManager userBalloonManager1 = new UserBalloonManager(this, entity.getLocation());
-        userBalloonManager1.getModelEntity().teleport(entity.getLocation().add(cosmeticBalloonType.getBalloonOffset()));
+        userBalloonManager1.setLocation(entity.getLocation().add(cosmeticBalloonType.getBalloonOffset()));
 
         userBalloonManager1.spawnModel(cosmeticBalloonType, getCosmeticColor(cosmeticBalloonType.getSlot()));
         userBalloonManager1.addPlayerToModel(this, cosmeticBalloonType, getCosmeticColor(cosmeticBalloonType.getSlot()));
@@ -696,7 +696,7 @@ public class CosmeticUser implements CosmeticHolder {
         Player player = getPlayer();
         if (player == null) return;
         for (final Player p : Bukkit.getOnlinePlayers()) {
-            p.hidePlayer(HMCCosmeticsPlugin.getInstance(), player);
+            if (p != player) SchedulerUtil.run(p, () -> p.hidePlayer(HMCCosmeticsPlugin.getInstance(), player));
             player.hidePlayer(HMCCosmeticsPlugin.getInstance(), p);
         }
     }
@@ -705,7 +705,7 @@ public class CosmeticUser implements CosmeticHolder {
         Player player = getPlayer();
         if (player == null) return;
         for (final Player p : Bukkit.getOnlinePlayers()) {
-            p.showPlayer(HMCCosmeticsPlugin.getInstance(), player);
+            if (p != player) SchedulerUtil.run(p, () -> p.showPlayer(HMCCosmeticsPlugin.getInstance(), player));
             player.showPlayer(HMCCosmeticsPlugin.getInstance(), p);
         }
     }

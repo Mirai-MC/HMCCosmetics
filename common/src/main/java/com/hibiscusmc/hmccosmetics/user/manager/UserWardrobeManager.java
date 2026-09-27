@@ -128,7 +128,7 @@ public class UserWardrobeManager {
 
         MessagesUtil.sendMessage(player, "opened-wardrobe");
 
-        Runnable run = () -> {
+        Runnable setupAtDestination = () -> {
             if (!player.isOnline()) {
                 end();
                 return;
@@ -143,7 +143,6 @@ public class UserWardrobeManager {
             viewerPackets.add(packetBuilder.buildEntityRotateHeadPacket(ARMORSTAND_ID, viewingLocation));
 
             // Player
-            player.teleport(viewingLocation, PlayerTeleportEvent.TeleportCause.PLUGIN);
             player.setInvisible(true);
             viewerPackets.add(packetBuilder.buildPlayerGamemodeChangePacket(GameMode.SPECTATOR));
             viewerPackets.add(packetBuilder.buildEntityCameraPacket(ARMORSTAND_ID));
@@ -192,7 +191,6 @@ public class UserWardrobeManager {
 
                     Location balloonLocation = npcLocation.clone().add(cosmetic.getBalloonOffset());
                     HMCCPacketManager.sendTeleportPacket(user.getBalloonManager().getPufferfishBalloonId(), balloonLocation, false, viewer);
-                    user.getBalloonManager().getModelEntity().teleport(balloonLocation);
                     user.getBalloonManager().setLocation(balloonLocation);
                 }
             }
@@ -217,6 +215,12 @@ public class UserWardrobeManager {
             setWardrobeStatus(WardrobeStatus.RUNNING);
         };
 
+        Runnable run = () -> player.teleportAsync(viewingLocation, PlayerTeleportEvent.TeleportCause.PLUGIN)
+            .thenAccept(success -> {
+                if (success) SchedulerUtil.run(player, setupAtDestination);
+                else SchedulerUtil.run(player, this::end);
+            });
+
 
         if (WardrobeSettings.isEnabledTransition()) {
             MessagesUtil.sendTitle(
@@ -237,11 +241,8 @@ public class UserWardrobeManager {
         setWardrobeStatus(WardrobeStatus.STOPPING);
         Player player = user.getPlayer();
 
-        List<Player> viewer = Collections.singletonList(player);
-        List<Player> outsideViewers = HMCCPacketManager.getViewers(viewingLocation);
-        outsideViewers.remove(player);
-
         if (player == null) return;
+        List<Player> viewer = Collections.singletonList(player);
         if (!Bukkit.getServer().getAllowFlight()) player.setAllowFlight(false);
         MessagesUtil.sendMessage(player, "closed-wardrobe");
 
@@ -281,36 +282,21 @@ public class UserWardrobeManager {
             }
             user.showPlayer();
 
-            if (user.hasCosmeticInSlot(CosmeticSlot.BACKPACK)) {
-                user.respawnBackpack();
-                //PacketManager.ridingMountPacket(player.getEntityId(), VIEWER.getBackpackEntity().getEntityId(), viewer);
-            }
+            Location target = Objects.requireNonNullElseGet(exitLocation, () -> player.getWorld().getSpawnLocation());
+            player.teleportAsync(target, PlayerTeleportEvent.TeleportCause.PLUGIN).thenAccept(success -> {
+                if (!success) return;
+                SchedulerUtil.run(player, () -> {
+                    if (user.hasCosmeticInSlot(CosmeticSlot.BACKPACK)) user.respawnBackpack();
 
-            if (user.hasCosmeticInSlot(CosmeticSlot.BALLOON)) {
-                //user.respawnBalloon();
-                //PacketManager.sendLeashPacket(VIEWER.getBalloonEntity().getPufferfishBalloonId(), player.getEntityId(), viewer);
-            }
-
-            player.teleport(Objects.requireNonNullElseGet(exitLocation, () -> player.getWorld().getSpawnLocation()), PlayerTeleportEvent.TeleportCause.PLUGIN);
-
-            HashMap<EquipmentSlot, ItemStack> items = new HashMap<>();
-            for (EquipmentSlot slot : HMCCInventoryUtils.getPlayerArmorSlots()) {
-                ItemStack item = player.getInventory().getItem(slot);
-                items.put(slot, item);
-            }
-            /*
-            if (WardrobeSettings.isEquipPumpkin()) {
-                items.put(EquipmentSlot.HEAD, player.getInventory().getHelmet());
-            }
-             */
-            packetBuilder.buildEntityEquipmentSlotUpdatePacket(player.getEntityId(), items).sendPacket(viewer);
-
-            if (WardrobeSettings.isEnabledBossbar()) {
-                //Audience target = BukkitAudiences.create(HMCCosmeticsPlugin.getInstance()).player(player);
-                player.hideBossBar(bossBar);
-            }
-
-            user.updateCosmetic();
+                    HashMap<EquipmentSlot, ItemStack> items = new HashMap<>();
+                    for (EquipmentSlot slot : HMCCInventoryUtils.getPlayerArmorSlots()) {
+                        items.put(slot, player.getInventory().getItem(slot));
+                    }
+                    packetBuilder.buildEntityEquipmentSlotUpdatePacket(player.getEntityId(), items).sendPacket(viewer);
+                    if (WardrobeSettings.isEnabledBossbar()) player.hideBossBar(bossBar);
+                    user.updateCosmetic();
+                });
+            });
         };
         run.run();
     }
