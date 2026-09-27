@@ -30,10 +30,12 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.scheduler.BukkitRunnable;
+import com.hibiscusmc.hmccosmetics.util.SchedulerUtil;
+import com.hibiscusmc.hmccosmetics.util.SchedulerUtil.TaskHandle;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 
 public class UserWardrobeManager {
@@ -224,7 +226,7 @@ public class UserWardrobeManager {
                     WardrobeSettings.getTransitionStay(),
                     WardrobeSettings.getTransitionFadeOut()
             );
-            Bukkit.getScheduler().runTaskLater(HMCCosmeticsPlugin.getInstance(), run, WardrobeSettings.getTransitionDelay());
+            SchedulerUtil.runLater(Objects.requireNonNull(user.getPlayer()), run, WardrobeSettings.getTransitionDelay());
         } else {
             run.run();
         }
@@ -316,13 +318,13 @@ public class UserWardrobeManager {
     private void update() {
         final AtomicInteger data = new AtomicInteger();
 
-        BukkitRunnable runnable = new BukkitRunnable() {
-            @Override
-            public void run() {
+        AtomicReference<TaskHandle> updateTask = new AtomicReference<>();
+        Runnable runnable = () -> {
                 Player player = user.getPlayer();
                 if (!active || player == null) {
                     MessagesUtil.sendDebugMessages("WardrobeEnd[user=" + user.getUniqueId() + ",reason=Active is false]");
-                    this.cancel();
+                    TaskHandle task = updateTask.get();
+                    if (task != null) task.cancel();
                     return;
                 }
                 MessagesUtil.sendDebugMessages("WardrobeUpdate[user=" + user.getUniqueId() + ",status=" + getWardrobeStatus() + "]");
@@ -370,10 +372,10 @@ public class UserWardrobeManager {
                 } else {
                     HMCCPacketManager.equipmentSlotUpdate(user.getPlayer(), true, viewer); // Optifine dumbassery
                 }
-            }
         };
 
-        runnable.runTaskTimer(HMCCosmeticsPlugin.getInstance(), 0, 2);
+        Player player = user.getPlayer();
+        if (player != null) updateTask.set(SchedulerUtil.runTimer(player, runnable, 1, 2));
     }
 
     public enum WardrobeStatus {

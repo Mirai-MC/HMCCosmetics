@@ -1,6 +1,7 @@
 package com.hibiscusmc.hmccosmetics.database.types;
 
 import com.hibiscusmc.hmccosmetics.HMCCosmeticsPlugin;
+import com.hibiscusmc.hmccosmetics.util.SchedulerUtil;
 import com.hibiscusmc.hmccosmetics.cosmetic.Cosmetic;
 import com.hibiscusmc.hmccosmetics.cosmetic.CosmeticSlot;
 import com.hibiscusmc.hmccosmetics.database.UserData;
@@ -51,7 +52,7 @@ public abstract class SQLData extends Data {
             }
         };
         if (!HMCCosmeticsPlugin.getInstance().isDisabled()) {
-            Bukkit.getScheduler().runTaskAsynchronously(HMCCosmeticsPlugin.getInstance(), run);
+            SchedulerUtil.runAsync(run);
         } else {
             run.run();
         }
